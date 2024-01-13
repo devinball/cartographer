@@ -1,83 +1,106 @@
-# The Balkan Border Builder
-# The idea is we ask everyone in the balkans their neighbors are from
-# If someone has neighbors from somewhere else than they are, then they live on the border
-
 from PIL import Image
 import numpy as np
 
-fp : str = "./render.png"
-step : int = 30
-render_scale : float = 4
+# Color based on slope and elevation
+# Could do it seperate, but probably best to do it in the loop we already have
+# we could have a main loop where get call is_boundary_point and get_color_from_slope or something
 
-start_color : tuple[int, int, int] = (211, 197, 182)
-end_color   : tuple[int, int, int] = (43 , 23 , 0  )
-line_color  : tuple[int, int, int] = (31 , 16 , 0  )
+fp : str = "./heightmaps"
+step : int = 10
+max_pixel_value : int = 100
+render_scale : float = 0.5
 
-heightmap = Image.open(fp).convert(mode="L")
-heightmap = heightmap.resize(size=(int(heightmap.width * render_scale), int(heightmap.height * render_scale)), resample=Image.BILINEAR)
+line_color : tuple[int, int, int] = (31, 16, 0)
+start_color : tuple[int, int, int] = (43, 23, 0)
+end_color  : tuple[int, int, int] = (211, 197, 182)
+
+heightmap = Image.open(fp).convert("L")
+heightmap = heightmap.resize((int(heightmap.width * render_scale), int(heightmap.height * render_scale)), Image.BILINEAR)
 
 width, height = heightmap.width, heightmap.height
-output = Image.new(mode="L", size=(width, height))
 
-def get_pixel_in_range(img : Image.Image, x : int, y : int) -> int:
-    if x > 0 and x < img.width and y > 0 and y < img.height:
-        return img.getpixel((x,y))
-    else:
-        return 0
+def interpolate(a : float, b : float, t : float):
+    return a * (1.0 - t) + (b * t)
+
+def color_ramp(a : tuple[int, int, int], b : tuple[int, int, int], t : float) -> tuple[int, int, int]:
+    return (
+        int(interpolate(a[0], b[0], t)),
+        int(interpolate(a[1], b[1], t)),
+        int(interpolate(a[2], b[2], t)),
+    )
+
+def get_point_in_bounds(img : Image.Image, x : int, y : int) -> int:
+    x = max(0, min(x, img.width-1)) 
+    y = max(0, min(y, img.height-1))
+    return img.getpixel((x, y))
 
 def get_neighbors(img : Image.Image, x : int, y : int) -> list[int]:
     return [
-        get_pixel_in_range(img, x-1, y+1),
-        get_pixel_in_range(img, x-1, y  ),
-        get_pixel_in_range(img, x-1, y-1),
+        get_point_in_bounds(img, x-1, y-1),
+        get_point_in_bounds(img, x-1, y  ),
+        get_point_in_bounds(img, x-1, y+1),
 
-        get_pixel_in_range(img, x  , y+1),
-        get_pixel_in_range(img, x  , y  ),
-        get_pixel_in_range(img, x  , y-1),
-
-        get_pixel_in_range(img, x+1, y+1),
-        get_pixel_in_range(img, x+1, y  ),
-        get_pixel_in_range(img, x+1, y-1),
+        get_point_in_bounds(img, x  , y-1),
+        get_point_in_bounds(img, x  , y+1),
+        
+        get_point_in_bounds(img, x+1, y-1),
+        get_point_in_bounds(img, x+1, y  ),
+        get_point_in_bounds(img, x+1, y+1),
     ]
 
-def get_boundary_points(img : Image.Image) -> list[tuple[int, int]]:
-    points = []
+def is_boundary_point(img : Image.Image, x : int, y : int) -> bool:
+        pix = get_point_in_bounds(img, x, y)
+        neighbors = get_neighbors(img, x, y)
+        return any([pix < neighbor for neighbor in neighbors])
+
+def get_slope(img : Image.Image, x : int, y : int) -> int:
+    up    = get_point_in_bounds(img, x  , y+1)
+    down  = get_point_in_bounds(img, x  , y-1)
+    left  = get_point_in_bounds(img, x+1, y  )
+    right = get_point_in_bounds(img, x-1, y  )
+
+    vertical   = up - down
+    horizontal = left - right
+
+    return vertical
+
+def march_image(output : Image.Image, heightmap : Image.Image, stepped_heightmap : Image.Image):
+    boundary_points : list[tuple[int, int]] = []
+
     for x in range(width):
         for y in range(height):
-            pix = get_pixel_in_range(img, x, y)
-            if not all([neighbor == pix for neighbor in get_neighbors(img, x, y)]):
-                points.append((x, y))
+            #slope = get_slope(heightmap, x, y) * 10
+            #color = (slope,slope,slope) #step_color(slope) #+ get_point_in_bounds(heightmap, x, y)) # 
+            #output.putpixel((x,y), color)
 
-    return points
+            color = color_ramp(start_color, end_color, get_point_in_bounds(stepped_heightmap, x, y)/max_pixel_value)
 
-def step_image(img : Image.Image, upper_bound : int) -> Image.Image:
+            output.putpixel((x,y), color)
+
+            if is_boundary_point(stepped_heightmap, x, y):
+                boundary_points.append((x, y))
+
+    for b in boundary_points:
+        output.putpixel(b, line_color)
+
+def step_image(img : Image.Image) -> Image.Image:
     arr = np.array(img)
 
-    nums = list(range(0, 255, step))
+    nums = list(range(0, max_pixel_value, step))
+    arr = np.minimum(arr, nums[-1])
 
-    for idx, num in enumerate(nums):
-        i = max(idx-1, 0)
-        arr = np.where(np.logical_and(arr<num, arr>nums[i]), num, arr)
-
-    """
-    for coord, val in np.ndenumerate(arr):
-        for i in nums:
-            if val > i:
-                arr[coord] = i
-
-    """
+    for idx in range(len(nums)):
+        i = max(0,idx-1)
+        arr = np.where(np.logical_and(arr <= nums[idx], arr > nums[i]), nums[idx], arr)
 
     return Image.fromarray(arr)
 
-print("Stepping Image...")
-a = step_image(heightmap, 127)
 
-print("Finding Boundaries...")
-boundary_points : list[tuple[int, int]] = get_boundary_points(a)
+print("Creating Stepped Image...")
+stepped_heightmap = step_image(heightmap)
 
-print("Drawing Lines...")
-output = heightmap
-for b in boundary_points:
-    output.putpixel(b, (0))
+print("Marching Image...")
+output = Image.new("RGB", (width, height))
+march_image(output, heightmap, stepped_heightmap)
 
 output.show()
