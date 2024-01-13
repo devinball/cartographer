@@ -1,2 +1,4 @@
-heightmaps/
+heightmaps/*
 venv/
+.mypy_cache/
+build/
