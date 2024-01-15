@@ -2,3 +2,4 @@ heightmaps/*
 venv/
 .mypy_cache/
 build/
+__pycache__/
