@@ -1,4 +1,5 @@
 heightmaps/*
+watermaps/
 venv/
 .mypy_cache/
 build/
