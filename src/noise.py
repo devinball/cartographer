@@ -42,6 +42,7 @@ def perlin(x : float, y : float) -> float:
 
     return interpolate(ic0, ic1, u[1]) * 0.5 + 0.5
 
+@numba.njit
 def fBm(noise_function, x : float, y : float, octaves : int, lacunarity : float, gain : float) -> float:
     sum : float = 0
     octave_frequency : float = 1.0

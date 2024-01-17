@@ -1,25 +1,27 @@
 import numba
 import numpy as np
 from PIL import Image
-from noise import perlin
+from noise import perlin, fBm
+from hydraulic_erosion import erode
 
 width, height = 1024, 1024
 
-frequency = 10
-
-#fBm(perlin, x, y, 4, 2.0, 0.5)
-
+frequency = 2
 
 img = Image.new("L", (width, height))
 
 @numba.njit
-def a(img : np.ndarray):
+def get_noise(img : np.ndarray):
     for x in range(width):
         for y in range(height):
-            img[x, y] = int(perlin((x / width) * frequency, (y / height) * frequency) * 255)
+            noise = fBm(perlin, (x / width) * frequency, (y / height) * frequency, 8, 2, 0.5)
+            img[x, y] = noise * 255
 
-arr = np.array(img)
 
-a(arr)
+arr = np.array(img, dtype=np.float32)
 
+get_noise(arr)
+#Image.fromarray(arr).show()
+
+erode(arr)
 Image.fromarray(arr).show()
