@@ -1,6 +1,8 @@
 heightmaps/*
-watermaps/
+terrain_masks/*
+watermaps/*
 venv/
 .mypy_cache/
 build/
 __pycache__/
+reference.txt

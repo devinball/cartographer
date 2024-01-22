@@ -4,10 +4,11 @@ from PIL import Image
 
 Image.MAX_IMAGE_PIXELS = None
 
-fp : str = "./heightmaps/southwest_logan.png"
+fp : str = "./heightmaps/tmpcwmsqrmp.PNG"
 
 step : int = 5
 max_pixel_value : int = 255
+min_pixel_value : int = 0
 render_scale : float = 1
 
 line_color : tuple[int, int, int] = (0, 0, 0)
@@ -99,7 +100,7 @@ def draw_boundaries(img : np.ndarray, boundary_points : list[tuple[int, int, int
         else:
             img[(b[0], b[1])] = line_color
 
-@numba.njit
+@numba.njit()
 def march_image(output : np.ndarray, heightmap : np.ndarray, stepped_heightmap : np.ndarray):
     # list of x, y, value
     boundary_points : list[tuple[int, int, int]] = []
@@ -118,32 +119,36 @@ def march_image(output : np.ndarray, heightmap : np.ndarray, stepped_heightmap :
 
     draw_boundaries(output, boundary_points)
 
-def step_image(img : Image.Image) -> Image.Image:
-    arr = np.array(img)
+def step_heightmap(heightmap : np.ndarray) -> np.ndarray:
+    arr = heightmap.copy()
 
-    nums = list(range(0, max_pixel_value, step))
+    nums = list(range(min_pixel_value, max_pixel_value, step))
     nums.append(max_pixel_value)
 
     for idx in range(len(nums)):
         i = max(0,idx-1)
         arr = np.where(np.logical_and(arr <= nums[idx], arr > nums[i]), idx, arr)
 
-    return Image.fromarray(arr)
+    return arr
 
 # Loads the image, converts it to grayscale, and scales it
 print("Loading Heightmap...")
-heightmap = Image.open(fp).convert("L")
-heightmap = heightmap.resize((int(heightmap.width * render_scale), int(heightmap.height * render_scale)), Image.BILINEAR)
+heightmap_img = Image.open(fp).convert("L")
+heightmap_img = heightmap_img.resize((int(heightmap_img.width * render_scale), int(heightmap_img.height * render_scale)), Image.BILINEAR)
 
-width, height = heightmap.width, heightmap.height
+width, height = heightmap_img.width, heightmap_img.height
+
+heightmap = np.array(heightmap_img)
+max_pixel_value = heightmap.max()
+min_pixel_value = heightmap.min()
 
 # Steps the image into distict layers
 print("Creating Stepped Image...")
-stepped_heightmap = step_image(heightmap)
+stepped_heightmap = step_heightmap(heightmap)
 
 # Iterated over the image to find the boundaries between layers
 print("Finding Boundary Points...")
 output = np.array(Image.new("RGB", (width, height)))
-march_image(output, np.array(heightmap), np.array(stepped_heightmap))
+march_image(output, heightmap, stepped_heightmap)
 
 Image.fromarray(output).show()

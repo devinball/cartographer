@@ -40,7 +40,19 @@ def perlin(x : float, y : float) -> float:
     ic0 : float = interpolate(c, cx, u[0])
     ic1 : float = interpolate(cy, cxy, u[0])
 
-    return interpolate(ic0, ic1, u[1]) * 0.5 + 0.5
+    return interpolate(ic0, ic1, u[1])
+
+@numba.njit
+def ridged_perlin(x : float, y : float) -> float:
+    return (1 - abs(perlin(x, y))) * 2 - 1
+
+@numba.njit
+def normalized_perlin(x : float, y : float) -> float:
+    return perlin(x, y) * 0.5 + 0.5
+
+@numba.njit
+def domain_warp(x : float, y : float, warp_strength : float, warp_function, noise_function) -> float:
+    return noise_function(warp_function(x, y) * warp_strength + x, warp_function(x, y) * warp_strength + y)
 
 @numba.njit
 def fBm(noise_function, x : float, y : float, octaves : int, lacunarity : float, gain : float) -> float:
