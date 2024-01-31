@@ -4,7 +4,7 @@ from PIL import Image
 
 Image.MAX_IMAGE_PIXELS = None
 
-fp : str = "./heightmaps/tmpcwmsqrmp.PNG"
+fp : str = "./heightmaps/maps/wind_rivers.png"
 
 step : int = 5
 max_pixel_value : int = 255
