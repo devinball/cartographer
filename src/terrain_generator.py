@@ -10,17 +10,17 @@ numba.config.THREADING_LAYER = 'omp'
 
 width, height = 1024, 1024
 
-max_pixel_value : int = 65525
+max_pixel_value : int = 65535
 min_pixel_value : int = 0
 
 mask_upscale : float = 1
 
-frequency = 16
-
-mountain_amplitude = 1
-flatlands_amplitude = 1
+frequency = 4
+amplitude = 1
 
 x_offset, y_offset = random.randint(-1000000, 1000000), random.randint(-1000000, 1000000)
+
+print(x_offset, y_offset)
 
 @numba.njit(parallel=True)
 def generate_noise(img : np.ndarray, noise_function):
@@ -37,7 +37,7 @@ def generate_noise(img : np.ndarray, noise_function):
 
         noise = noise_function(sample_x, sample_y)
 
-        img[y, x] = noise * max_pixel_value
+        img[y, x] = noise * amplitude
 
 @numba.njit()
 def sigmoid(a : float, numerator : float=1) -> float:
@@ -48,24 +48,31 @@ def clamp(t, a, b):
     return min(b, max(a, t))
 
 @numba.njit()
+def mountain_noise(x : float, y : float) -> float:
+    a = fBm(perlin, x, y, 10, 1.75, 0.6) * 0.5 + 0.5
+    a = (10 ** a) / 10
+
+    b = 1 - abs(fBm(perlin, x, y, 4, 1.5, 0.5))
+    b = b ** 2
+    
+    noise = (a * b) ** 0.75
+
+    return noise
+
+#TODO: Replace constants with variables and notate everything
+@numba.njit()
 def noise_function(x : float, y : float) -> float:
     x *= frequency
     y *= frequency
 
-    a = fBm(perlin, x, y, 8, 1.5, 0.6) * 0.5 + 0.5
+    return mountain_noise(x, y)
 
-    b = fBm(ridged_perlin, x / 6, y / 6, 4, 1.5, 0.25)
-    b = pow(b, 2)
-    b = sigmoid(-10 * (b - 0.3), numerator=0.9) + 0.1
-
-    c = normalized_perlin(x / 8, y / 8) ** 3
-
-    noise = a * b * c
-
-    return clamp(noise, 0, 1)
 
 arr = np.zeros((height, width), dtype=np.float32)
 
 generate_noise(arr, noise_function)
+
+arr /= max(arr.flatten())
+arr *= max_pixel_value
 
 imageio.imwrite("./result.png", arr.astype(np.uint16))

@@ -44,7 +44,7 @@ def perlin(x : float, y : float) -> float:
 
 @numba.njit
 def ridged_perlin(x : float, y : float) -> float:
-    return (1 - abs(perlin(x, y))) * 2 - 1
+    return (1 - abs(perlin(x, y)))
 
 @numba.njit
 def normalized_perlin(x : float, y : float) -> float:
