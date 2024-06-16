@@ -4,12 +4,12 @@ from PIL import Image
 
 Image.MAX_IMAGE_PIXELS = None
 
-fp : str = "./heightmaps/maps/wind_rivers.png"
+fp : str = "heightmaps/maps/terrain.png"
 
 step : int = 5
 max_pixel_value : int = 255
 min_pixel_value : int = 0
-render_scale : float = 1
+render_scale : float = 3
 
 line_color : tuple[int, int, int] = (0, 0, 0)
 start_color : tuple[int, int, int] = (43, 23, 0)
@@ -142,7 +142,7 @@ heightmap = np.array(heightmap_img)
 max_pixel_value = heightmap.max()
 min_pixel_value = heightmap.min()
 
-# Steps the image into distict layers
+# Steps the image into distinct layers
 print("Creating Stepped Image...")
 stepped_heightmap = step_heightmap(heightmap)
 

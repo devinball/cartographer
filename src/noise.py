@@ -2,28 +2,39 @@ import math
 import numba
 import numpy as np
 
-@numba.njit
+@numba.njit()
 def fract(a) -> float:
     return a - math.floor(a)
 
-@numba.njit
+@numba.njit()
 def dot(a : np.ndarray, b : np.ndarray):
     sum : float = 0
     for i in range(len(a)):
         sum += a[i] * b[i]
     return sum
 
-@numba.njit
+@numba.njit()
 def rand2(co : np.ndarray) -> np.ndarray:
     co = np.array([dot(co, np.array([127.1,311.7])), dot(co, np.array([269.5,183.3]))])
     a = np.array([math.sin(co[0]), math.sin(co[1])]) * 43758.5453123
     return -1.0 + 2.0 * np.array([fract(a[0]), fract(a[1])])
 
-@numba.njit
+@numba.njit()
 def interpolate(a : float, b : float, t : float):
     return (b - a) * (3.0 - t * 2.0) * t * t + a
 
-@numba.njit
+@numba.njit()
+def perlin1d(x : float) -> float:
+    low = math.floor(x)
+    fract_pos = fract(x)
+
+    v_l = rand2([low, low])[0]
+    v_u = rand2([low+1, low+1])[0]
+
+    return interpolate(v_l, v_u, fract_pos)
+
+
+@numba.njit()
 def perlin(x : float, y : float) -> float:
     pos : np.ndarray = np.array([float(math.floor(x)), float(math.floor(y))], dtype=np.float32)
     fract_pos : np.ndarray = np.array([fract(x), fract(y)], dtype=np.float32)
@@ -42,19 +53,19 @@ def perlin(x : float, y : float) -> float:
 
     return interpolate(ic0, ic1, u[1])
 
-@numba.njit
+@numba.njit()
 def ridged_perlin(x : float, y : float) -> float:
     return (1 - abs(perlin(x, y)))
 
-@numba.njit
+@numba.njit()
 def normalized_perlin(x : float, y : float) -> float:
     return perlin(x, y) * 0.5 + 0.5
 
-@numba.njit
+@numba.njit()
 def domain_warp(x : float, y : float, warp_strength : float, warp_function, noise_function) -> float:
     return noise_function(warp_function(x, y) * warp_strength + x, warp_function(x, y) * warp_strength + y)
 
-@numba.njit
+@numba.njit()
 def fBm(noise_function, x : float, y : float, octaves : int, lacunarity : float, gain : float) -> float:
     sum : float = 0
     octave_frequency : float = 1.0
